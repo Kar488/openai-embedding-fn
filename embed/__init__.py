@@ -31,10 +31,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             record_id = record.get("recordId", "no-id")
             text = record.get("data", {}).get("text", "")
 
-            if not text:
+            if not text or len(text.strip()) < 10:
+                logging.warning(f"Record {record_id} skipped: empty or too short.")
                 results.append({
                     "recordId": record_id,
-                    "errors": ["Missing 'text' field."]
+                    "data": {
+                        "embedding": []
+                    }
                 })
                 continue
 
