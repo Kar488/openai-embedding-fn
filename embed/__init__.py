@@ -31,11 +31,17 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             record_id = record.get("recordId", "no-id")
             text = record.get("data", {}).get("text", "")
 
-            if not text or len(text.strip()) < 10:
-                logging.warning(f"Record {record_id} skipped: empty or too short.")
+           if not text or len(text.strip()) < 10:
+                logging.warning(f"Skipping record {record_id} due to empty or short text.")
                 results.append({
-                    "recordId": record_id
-                    # No 'data' or 'errors' means Azure Search skips it cleanly
+                    "recordId": record_id,
+                    "errors": [
+                        {
+                            "message": "Skipped due to empty or missing text",
+                            "key": "EMPTY_TEXT",
+                            "statusCode": 422
+                        }
+                    ]
                 })
                 continue
 
