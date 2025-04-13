@@ -77,7 +77,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 results.append({
                     "recordId": record_id,
                     "data": {
-                        "embedding": final_embedding
+                        "embedding": final_embedding,
+                        "short_content": text
                     }
                 })
 
