@@ -47,6 +47,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                     api_version=openai.api_version
                 )
 
+                # Truncate long documents
+                max_chars = 30000
+                if len(text) > max_chars:
+                    logging.info(f"Trimming long content for record {record_id} from {len(text)} → {max_chars} chars")
+                    text = text[:max_chars]
+                    
                 chunks = chunk_text(text)
                 embeddings = []
                 for chunk in chunks:
