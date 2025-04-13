@@ -35,9 +35,9 @@ jobs:
       with:
         app-name: openai-embedding-fn
         package: 'release.zip'
-        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
+        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
         scm-do-build-during-deployment: false
-        enable-oryx-build: false
+        enable-oryx-build: true
         respect-pom-xml: false
         respect-funcignore: false
         remote-build: false
