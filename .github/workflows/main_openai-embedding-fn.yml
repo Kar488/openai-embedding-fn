@@ -27,9 +27,12 @@ jobs:
         cp -r !(build) ./build
         cp -r .python_packages ./build || true
 
-    - name: Deploy to Azure Function App
+    - name: Zip build folder
+      run: cd build && zip -r ../release.zip .
+
+    - name: Deploy to Azure Function App (.zip method)
       uses: Azure/functions-action@v1
       with:
         app-name: openai-embedding-fn
-        package: './build'
+        package: 'release.zip'
         publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
