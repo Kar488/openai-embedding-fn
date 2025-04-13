@@ -3,12 +3,23 @@ import json
 import os
 import openai
 import azure.functions as func
+import numpy as np
+from textwrap import wrap
 
+# Setup OpenAI
 openai.api_type = "azure"
 openai.api_base = os.getenv("AZURE_OPENAI_ENDPOINT")
-openai.api_version = "2023-12-01-preview"
+openai.api_version = "2023-12-01-Preview"
 openai.api_key = os.getenv("AZURE_OPENAI_KEY")
 deployment_name = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-ada-002")
+
+# Helper to average embeddings
+def average_embeddings(vectors):
+    return np.mean(vectors, axis=0).tolist()
+
+# Chunking function (~1,500 tokens = ~6,000 characters max safe size)
+def chunk_text(text, max_chars=6000):
+    return wrap(text, max_chars)
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
@@ -17,7 +28,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         results = []
 
         for record in values:
-            record_id = record.get("recordId")
+            record_id = record.get("recordId", "no-id")
             text = record.get("data", {}).get("text", "")
 
             if not text:
@@ -27,10 +38,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 })
                 continue
 
-            # DEBUG
-            logging.info(f"Generating embedding for record: {record_id}")
-            logging.info(f"Input text (first 100 chars): {text[:100]}")
-
             try:
                 client = openai.AzureOpenAI(
                     api_key=openai.api_key,
@@ -38,22 +45,26 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                     api_version=openai.api_version
                 )
 
-                response = client.embeddings.create(
-                    input=text,
-                    model=deployment_name
-                )
+                chunks = chunk_text(text)
+                embeddings = []
+                for chunk in chunks:
+                    response = client.embeddings.create(
+                        input=chunk,
+                        model=deployment_name
+                    )
+                    embeddings.append(response.data[0].embedding)
 
-                embedding = response.data[0].embedding
+                final_embedding = average_embeddings(embeddings)
 
                 results.append({
                     "recordId": record_id,
                     "data": {
-                        "embedding": embedding
+                        "embedding": final_embedding
                     }
                 })
 
             except Exception as inner_error:
-                logging.error(f"Embedding error for record {record_id}: {str(inner_error)}")
+                logging.exception("Error during embedding")
                 results.append({
                     "recordId": record_id,
                     "errors": [str(inner_error)]
@@ -66,7 +77,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except Exception as outer_error:
-        logging.exception("🔥 Function failed at outer scope")
+        logging.exception("Top-level error")
         return func.HttpResponse(
             json.dumps({ "error": str(outer_error) }),
             status_code=500,
