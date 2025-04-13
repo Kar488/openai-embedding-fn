@@ -35,9 +35,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 logging.warning(f"Record {record_id} skipped: empty or too short.")
                 results.append({
                     "recordId": record_id,
-                    "data": {
-                        "embedding": []
-                    }
+                    "errors": ["Embedding was skipped due to missing or invalid input."]
                 })
                 continue
 
