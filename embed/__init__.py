@@ -34,8 +34,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             if not text or len(text.strip()) < 10:
                 logging.warning(f"Record {record_id} skipped: empty or too short.")
                 results.append({
-                    "recordId": record_id,
-                    "errors": ["Embedding was skipped due to missing or invalid input."]
+                    "recordId": record_id
+                    # No 'data' or 'errors' means Azure Search skips it cleanly
                 })
                 continue
 
