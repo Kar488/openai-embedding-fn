@@ -27,18 +27,37 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 })
                 continue
 
-            response = openai.AzureOpenAI().embeddings.create(
-                input=text,
-                model=deployment_name
-            )
-            embedding = response.data[0].embedding
+            # DEBUG
+            logging.info(f"Generating embedding for record: {record_id}")
+            logging.info(f"Input text (first 100 chars): {text[:100]}")
 
-            results.append({
-                "recordId": record_id,
-                "data": {
-                    "embedding": embedding
-                }
-            })
+            try:
+                client = openai.AzureOpenAI(
+                    api_key=openai.api_key,
+                    azure_endpoint=openai.api_base,
+                    api_version=openai.api_version
+                )
+
+                response = client.embeddings.create(
+                    input=text,
+                    model=deployment_name
+                )
+
+                embedding = response.data[0].embedding
+
+                results.append({
+                    "recordId": record_id,
+                    "data": {
+                        "embedding": embedding
+                    }
+                })
+
+            except Exception as inner_error:
+                logging.error(f"Embedding error for record {record_id}: {str(inner_error)}")
+                results.append({
+                    "recordId": record_id,
+                    "errors": [str(inner_error)]
+                })
 
         return func.HttpResponse(
             body=json.dumps({ "values": results }),
@@ -46,10 +65,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json"
         )
 
-    except Exception as e:
-        logging.exception("Embedding function failed")
+    except Exception as outer_error:
+        logging.exception("🔥 Function failed at outer scope")
         return func.HttpResponse(
-            json.dumps({ "error": str(e) }),
+            json.dumps({ "error": str(outer_error) }),
             status_code=500,
             mimetype="application/json"
         )
