@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_NAME: openai-embedding-fn
+  AZURE_FUNCTIONAPP_NAME: openai-embedding-fn-v2
   PYTHON_VERSION: '3.10'
 
 jobs:
