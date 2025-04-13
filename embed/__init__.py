@@ -39,6 +39,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 continue
 
             try:
+                logging.info("DEBUG: Calling Azure OpenAI with → endpoint=%s | deployment=%s | version=%s",openai.api_base, deployment_name, openai.api_version)
+                
                 client = openai.AzureOpenAI(
                     api_key=openai.api_key,
                     azure_endpoint=openai.api_base,
