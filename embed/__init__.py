@@ -17,7 +17,7 @@ deployment_name = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding
 def average_embeddings(vectors):
     return np.mean(vectors, axis=0).tolist()
 
-# Chunking function (~1,500 tokens = ~6,000 characters max safe size)
+# Chunking function (~1,500 tokens = ~6,000 chars)
 def chunk_text(text, max_chars=6000):
     return wrap(text, max_chars)
 
@@ -31,7 +31,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             record_id = record.get("recordId", "no-id")
             text = record.get("data", {}).get("text", "")
 
-           if not text or len(text.strip()) < 10:
+            # Skip if empty or short
+            if not text or len(text.strip()) < 10:
                 logging.warning(f"Skipping record {record_id} due to empty or short text.")
                 results.append({
                     "recordId": record_id,
@@ -46,20 +47,22 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 continue
 
             try:
-                logging.info("DEBUG: Calling Azure OpenAI with → endpoint=%s | deployment=%s | version=%s",openai.api_base, deployment_name, openai.api_version)
-                
+                logging.info("DEBUG: Calling Azure OpenAI with → endpoint=%s | deployment=%s | version=%s",
+                             openai.api_base, deployment_name, openai.api_version)
+
                 client = openai.AzureOpenAI(
                     api_key=openai.api_key,
                     azure_endpoint=openai.api_base,
                     api_version=openai.api_version
                 )
 
-                # Truncate long documents
+                # Truncate long content
                 max_chars = 30000
                 if len(text) > max_chars:
-                    logging.info(f"Trimming long content for record {record_id} from {len(text)} → {max_chars} chars")
+                    logging.info(f"Trimming content for record {record_id} from {len(text)} → {max_chars} chars")
                     text = text[:max_chars]
-                    
+
+                # Chunk + embed
                 chunks = chunk_text(text)
                 embeddings = []
                 for chunk in chunks:
@@ -79,10 +82,16 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 })
 
             except Exception as inner_error:
-                logging.exception("Error during embedding")
+                logging.exception(f"Error embedding record {record_id}")
                 results.append({
                     "recordId": record_id,
-                    "errors": [str(inner_error)]
+                    "errors": [
+                        {
+                            "message": str(inner_error),
+                            "key": "EMBEDDING_FAILED",
+                            "statusCode": 500
+                        }
+                    ]
                 })
 
         return func.HttpResponse(
@@ -92,7 +101,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except Exception as outer_error:
-        logging.exception("Top-level error")
+        logging.exception("Top-level failure")
         return func.HttpResponse(
             json.dumps({ "error": str(outer_error) }),
             status_code=500,
