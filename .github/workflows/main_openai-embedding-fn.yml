@@ -1,4 +1,4 @@
-name: Build and Deploy Azure Function App
+name: Build and Deploy Azure Function App (ZIP with Artifact)
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,12 +27,33 @@ jobs:
         cp -r !(build) ./build
         cp -r .python_packages ./build || true
 
-    - name: Zip build folder
+    - name: Create ZIP package
       run: cd build && zip -r ../release.zip .
 
-    - name: Deploy to Azure Function App (.zip method)
+    - name: Upload ZIP as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-package
+        path: release.zip
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Download ZIP artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: release-package
+
+    - name: Deploy ZIP to Azure Function App
       uses: Azure/functions-action@v1
       with:
         app-name: openai-embedding-fn
-        package: 'release.zip'
+        package: release.zip
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+
+    - name: Set WEBSITE_RUN_FROM_PACKAGE=1 (optional safety net)
+      run: |
+        echo "WEBSITE_RUN_FROM_PACKAGE=1" >> $GITHUB_ENV
+
